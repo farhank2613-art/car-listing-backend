@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { query, rowToListing } from './db.js';
+import { query, rowToListing, waitForDb } from './db.js';
 import { seed } from './seed.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -250,6 +250,7 @@ app.use((err, _req, res, _next) => {
 });
 
 async function start() {
+  await waitForDb();
   await seed();
   app.listen(PORT, () => console.log(`Car Listings API listening on http://localhost:${PORT}`));
 }

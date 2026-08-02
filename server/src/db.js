@@ -3,12 +3,29 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000
 });
 
 export async function query(text, params = []) {
   const res = await pool.query(text, params);
   return res;
+}
+
+export async function waitForDb(retries = 15, delayMs = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await pool.query('SELECT 1');
+      console.log('Database connection established.');
+      return;
+    } catch (err) {
+      console.log(`Database attempt ${i + 1}/${retries} failed: ${err.code || err.message}`);
+      if (i < retries - 1) await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw new Error('Could not connect to database after retries.');
 }
 
 export async function migrate() {
