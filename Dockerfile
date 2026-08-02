@@ -1,16 +1,7 @@
-FROM node:22-slim AS client-build
-WORKDIR /app/client
-COPY client/package*.json ./
-RUN npm install
-COPY client/ ./
-RUN npm run build
-
 FROM node:22-slim
 WORKDIR /app
-COPY package.json ./
-COPY server/package*.json ./server/
-RUN cd server && npm install --production
-COPY server/ ./server/
-COPY --from=client-build /app/client/dist ./client/dist
+COPY . .
+RUN npm install
+RUN cd client && npm install && npm run build && cd ../server && npm install --production
 EXPOSE 4000
 CMD ["npm", "start"]
