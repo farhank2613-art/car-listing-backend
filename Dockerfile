@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 COPY client/package*.json ./client/
 COPY server/package*.json ./server/
@@ -8,7 +8,7 @@ COPY client/ ./client/
 COPY server/ ./server/
 RUN cd client && npm run build
 
-FROM node:24-alpine
+FROM node:24-slim
 WORKDIR /app
 COPY --from=builder /app/server/node_modules ./server/node_modules
 COPY --from=builder /app/server/ ./server/

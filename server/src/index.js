@@ -328,10 +328,15 @@ app.get('/api/placeholder.svg', (req, res) => {
 });
 
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
-app.use(express.static(clientDist));
+try {
+  app.use(express.static(clientDist));
+} catch { /* no client built yet */ }
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found.' });
-  res.sendFile(path.join(clientDist, 'index.html'));
+  const indexPath = path.join(clientDist, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) res.status(404).send('Not found');
+  });
 });
 
 app.use((err, _req, res, _next) => {
