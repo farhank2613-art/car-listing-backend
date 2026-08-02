@@ -1,16 +1,8 @@
 {
   "name": "car-listings",
   "private": true,
-  "version": "1.0.0",
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
-    "dev:server": "npm --prefix server run dev",
-    "dev:client": "npm --prefix client run dev",
-    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev:server\" \"npm run dev:client\"",
-    "build": "npm --prefix client run build",
-    "seed": "npm --prefix server run seed"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.0"
+    "build": "cd client && npm install && npm run build && cd ../server && npm install --production",
+    "start": "node server/src/index.js"
   }
 }

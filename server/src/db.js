@@ -1,25 +1,20 @@
-import { DatabaseSync } from 'node:sqlite';
-import path from 'node:path';
-import { mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import pg from 'pg';
+const { Pool } = pg;
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, '..', 'data');
-mkdirSync(dataDir, { recursive: true });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
+});
 
-export const db = new DatabaseSync(path.join(dataDir, 'cars.db'));
-db.exec('PRAGMA journal_mode = WAL');
-
-export function prepare(sql) {
-  const st = db.prepare(sql);
-  st.setAllowBareNamedParameters(true);
-  return st;
+export async function query(text, params = []) {
+  const res = await pool.query(text, params);
+  return res;
 }
 
-export function migrate() {
-  db.exec(`
+export async function migrate() {
+  await query(`
     CREATE TABLE IF NOT EXISTS listings (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      id          SERIAL PRIMARY KEY,
       title       TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       make        TEXT NOT NULL,
@@ -35,26 +30,25 @@ export function migrate() {
       condition   TEXT NOT NULL DEFAULT 'Used',
       location    TEXT NOT NULL DEFAULT '',
       vin         TEXT NOT NULL DEFAULT '',
-      features    TEXT NOT NULL DEFAULT '[]',
-      images      TEXT NOT NULL DEFAULT '[]',
+      features    JSONB NOT NULL DEFAULT '[]',
+      images      JSONB NOT NULL DEFAULT '[]',
       seller_name  TEXT NOT NULL DEFAULT '',
       seller_email TEXT NOT NULL DEFAULT '',
       seller_phone TEXT NOT NULL DEFAULT '',
       edit_token  TEXT,
-      created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+      created_at  INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER,
       views       INTEGER NOT NULL DEFAULT 0,
       favorites   INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS leads (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      listing_id INTEGER NOT NULL,
+      id         SERIAL PRIMARY KEY,
+      listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
       name       TEXT NOT NULL,
       email      TEXT NOT NULL,
       phone      TEXT NOT NULL DEFAULT '',
       message    TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+      created_at INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_listings_make ON listings(make);
@@ -66,23 +60,33 @@ export function migrate() {
   `);
 }
 
-export function safeParse(json) {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return [];
-  }
-}
-
 export function rowToListing(row) {
   if (!row) return null;
   return {
-    ...row,
-    features: safeParse(row.features),
-    images: safeParse(row.images),
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    make: row.make,
+    model: row.model,
+    year: row.year,
+    price: row.price,
+    mileage: row.mileage,
+    bodyType: row.body_type,
+    fuelType: row.fuel_type,
+    transmission: row.transmission,
+    drivetrain: row.drivetrain,
+    color: row.color,
+    condition: row.condition,
+    location: row.location,
+    vin: row.vin,
+    features: typeof row.features === 'string' ? JSON.parse(row.features) : (row.features || []),
+    images: typeof row.images === 'string' ? JSON.parse(row.images) : (row.images || []),
+    sellerName: row.seller_name,
+    sellerEmail: row.seller_email,
+    sellerPhone: row.seller_phone,
     createdAt: row.created_at,
-    editToken: row.edit_token
+    editToken: row.edit_token,
+    views: row.views,
+    favorites: row.favorites
   };
 }
-
-migrate();
